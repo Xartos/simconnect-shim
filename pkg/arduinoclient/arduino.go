@@ -146,34 +146,64 @@ func (a *ArduinoClient) Disconnect() {
 func arduinoLineReader(stream *serial.Port, writeChannel chan []byte, stopChan chan bool, logger *zap.Logger) {
 	isStop := false
 
-	for !isStop {
+	// for !isStop {
 
-		scanner := bufio.NewScanner(stream)
-		err := scanner.Err()
+	// 	scanner := bufio.NewScanner(stream)
+	// 	err := scanner.Err()
+	// 	if err != nil {
+	// 		logger.Fatal("scanner_new", zap.Error(err))
+	// 	}
+
+	// 	for scanner.Scan() {
+	// 		writeChannel <- scanner.Bytes()
+
+	// 		select {
+	// 		case stop := <-stopChan:
+	// 			logger.Debug("reader_stop")
+	// 			isStop = stop
+	// 			break
+	// 		default:
+	// 			break
+	// 		}
+	// 	}
+
+	// 	err = scanner.Err()
+	// 	if err != nil {
+	// 		logger.Error("scanner_new", zap.Error(err))
+	// 		continue
+	// 	}
+
+	// }
+	buf := make([]byte, 1)
+	fullBuf := make([]byte, 256)
+
+	for !isStop {
+		n, err := stream.Read(buf)
 		if err != nil {
-			logger.Fatal("scanner_new", zap.Error(err))
+			logger.Fatal("reading_stream", zap.Error(err))
+		} else if n != 1 {
+			logger.Fatal("reading_stream_n", zap.Int("n", n))
 		}
 
-		for scanner.Scan() {
-			writeChannel <- scanner.Bytes()
+		c := buf[0]
+		if c == '\n' {
+			writeChannel <- fullBuf
+			fullBuf = make([]byte, 256)
 
 			select {
 			case stop := <-stopChan:
 				logger.Debug("reader_stop")
 				isStop = stop
-				break
 			default:
-				break
+				continue
 			}
-		}
-
-		err = scanner.Err()
-		if err != nil {
-			logger.Error("scanner_new", zap.Error(err))
 			continue
 		}
 
+		fullBuf = append(fullBuf, c)
+
 	}
+
 }
 
 func (a *ArduinoClient) arduinoReadWriter(stream *serial.Port) {
