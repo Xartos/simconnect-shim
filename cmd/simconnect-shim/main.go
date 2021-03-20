@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"../../pkg/arduinoclient"
-	//	"../../pkg/simconnector"
+	"../../pkg/simconnector"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -17,7 +17,7 @@ import (
 var logger *zap.Logger
 var gArduino *arduinoclient.ArduinoClient
 
-//var gSimConnect *simconnector.SimConnectorClient
+var gSimConnect *simconnector.SimConnectorClient
 
 //freq := 100.125
 
@@ -25,6 +25,13 @@ type ArduinoListener struct{}
 
 func (al *ArduinoListener) Update(id int, eventType int, value int32) {
 	logger.Debug("arduino_listener_update", zap.Int("id", id), zap.Int("event_type", eventType), zap.Int32("value", value))
+
+	if value == 1 {
+		gSimConnect.TransmitEvent(simconnector.ComFractInc)
+	} else {
+		gSimConnect.TransmitEvent(simconnector.ComFractDec)
+	}
+
 	//mute, err := gPulseClient.GetMute()
 	//if err != nil {
 	//	logger.Error("getting_mute", zap.Error(err))
@@ -33,16 +40,17 @@ func (al *ArduinoListener) Update(id int, eventType int, value int32) {
 	//gPulseClient.Mute(!mute)
 }
 
-// type SimConnectorListener struct{}
-//
-// func (sl *SimConnectorListener) Update(id int, report simconnector.Report) {
-// 	logger.Debug("simconnect_listener_update", zap.ByteString("Title", report.Title[:]), zap.Float64("Altitude", report.Altitude))
-// }
+type SimConnectorListener struct{}
+
+func (sl *SimConnectorListener) Update(id int, report simconnector.Report) {
+	logger.Debug("simconnect_listener_update", zap.ByteString("Title", report.Title[:]), zap.Float64("Altitude", report.Altitude))
+	gArduino.SendEvent(2, 0, fmt.Sprintf("%.0f",report.Altitude))
+}
 
 func main() {
 	setupLogger()
 
-	arduino, err := arduinoclient.NewArduinoClient("/dev/ttyACM0", &ArduinoListener{}, logger)
+	arduino, err := arduinoclient.NewArduinoClient("COM3", &ArduinoListener{}, logger)
 	if err != nil {
 		logger.Fatal("arduino_create", zap.Error(err))
 	}
@@ -50,18 +58,18 @@ func main() {
 	arduino.Connect()
 	gArduino = arduino
 
-	//sc, err := simconnector.NewSimConnectorClient(&SimConnectorListener{}, logger)
-	//if err != nil {
-	//	logger.Fatal("simconnect_create", zap.Error(err))
-	//}
+	sc, err := simconnector.NewSimConnectorClient(&SimConnectorListener{}, logger)
+	if err != nil {
+		logger.Fatal("simconnect_create", zap.Error(err))
+	}
 
-	//sc.StartRead()
-	//gSimConnect = sc
+	sc.StartRead()
+	gSimConnect = sc
 
 	// gArduino.SendEvent(2, 0, "9000")
 	// gArduino.SendEvent(3, 0, "121.125")
 
-	// //time.Sleep(5 * time.Second)
+	// time.Sleep(5 * time.Second)
 
 	// gArduino.SendEvent(2, 0, "FL350")
 	// gArduino.SendEvent(3, 0, "117.100")
@@ -78,7 +86,7 @@ func main() {
 	logger.Info("signal_caught_exit")
 
 	arduino.Disconnect()
-	//sc.Stop()
+	sc.Stop()
 
 	time.Sleep(1 * time.Second)
 }

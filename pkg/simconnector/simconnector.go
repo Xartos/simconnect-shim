@@ -166,6 +166,12 @@ func (s *SimConnectorClient) TransmitEvent(event Event) error {
 	case ToggleNavLights:
 		s.logger.Info("toggle_nav_light")
 		return s.sc.TransmitClientID(s.events.ToggleNavLights, 0)
+	case ComFractInc:
+		s.logger.Info("com_fract_inc")
+		return s.sc.TransmitClientID(s.events.ComFractInc, 0)
+	case ComFractDec:
+		s.logger.Info("com_fract_dec")
+		return s.sc.TransmitClientID(s.events.ComFractDec, 0)
 	default:
 		s.logger.Error("unknown_transmit_event", zap.Int("event", int(event)))
 		return fmt.Errorf("unknown_transmit_event: %d", event)

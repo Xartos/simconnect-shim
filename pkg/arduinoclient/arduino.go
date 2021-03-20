@@ -145,30 +145,34 @@ func (a *ArduinoClient) Disconnect() {
 
 func arduinoLineReader(stream *serial.Port, writeChannel chan []byte, stopChan chan bool, logger *zap.Logger) {
 	isStop := false
-	scanner := bufio.NewScanner(stream)
-	err := scanner.Err()
-	if err != nil {
-		logger.Fatal("scanner_new", zap.Error(err))
-	}
+
 	for !isStop {
 
-		if !scanner.Scan() {
-			err := scanner.Err()
-			if err != nil {
-				logger.Fatal("scanner_new", zap.Error(err))
+		scanner := bufio.NewScanner(stream)
+		err := scanner.Err()
+		if err != nil {
+			logger.Fatal("scanner_new", zap.Error(err))
+		}
+
+		for scanner.Scan() {
+			writeChannel <- scanner.Bytes()
+
+			select {
+			case stop := <-stopChan:
+				logger.Debug("reader_stop")
+				isStop = stop
+				break
+			default:
+				break
 			}
 		}
 
-		writeChannel <- scanner.Bytes()
-
-		select {
-		case stop := <-stopChan:
-			logger.Debug("reader_stop")
-			isStop = stop
-			continue
-		default:
+		err = scanner.Err()
+		if err != nil {
+			logger.Error("scanner_new", zap.Error(err))
 			continue
 		}
+
 	}
 }
 
