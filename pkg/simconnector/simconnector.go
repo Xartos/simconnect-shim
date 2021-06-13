@@ -36,6 +36,12 @@ func NewSimConnectorClient(
 		ComTwoFractInc:  s.GetEventID(),
 		ComTwoFractDec:  s.GetEventID(),
 		ComTwoSwap:      s.GetEventID(),
+		AltVarInc:       s.GetEventID(),
+		AltVarDec:       s.GetEventID(),
+		AltVarSet:       s.GetEventID(),
+		HeadingBugInc:   s.GetEventID(),
+		HeadingBugDec:   s.GetEventID(),
+		HeadingBugSet:   s.GetEventID(),
 	}
 
 	fields := reflect.TypeOf(events)
@@ -138,9 +144,13 @@ func (s *SimConnectorClient) simconnectReader() {
 			case s.sc.DefineMap["Report"]:
 				report := (*Report)(ppData)
 				s.logger.Debug("got_report",
-					zap.String("title", fmt.Sprintf("%s", report.Title[:])),
+					//zap.String("title", fmt.Sprintf("%s", report.Title[:])),
 					zap.Int("altitude", int(report.Altitude)),
+					zap.Float64("com_active_frequency", report.ComActiveFrequency),
+					zap.Float64("heading", report.Heading),
 				)
+				s.lastAlt = int(report.Altitude)
+				s.lastHeading = report.Heading
 				s.listener.Update(0, *report)
 				report.RequestData(s.sc)
 			}
@@ -154,28 +164,70 @@ func (s *SimConnectorClient) simconnectReader() {
 }
 
 type SimConnectorClient struct {
-	listener   SimConnectorListener
-	sc         *simconnect.SimConnect
-	events     Events
-	stopSignal chan bool
-	logger     *zap.Logger
+	listener    SimConnectorListener
+	sc          *simconnect.SimConnect
+	events      Events
+	stopSignal  chan bool
+	lastHeading float64
+	lastAlt     int
+	logger      *zap.Logger
 }
 
-func (s *SimConnectorClient) TransmitEvent(event Event) error {
+func (s *SimConnectorClient) TransmitEventData(event Event, data int) error {
+	return s.TransmitEventDataDWORD(event, simconnect.DWORD(data))
+}
+func (s *SimConnectorClient) TransmitEventDataDWORD(event Event, data simconnect.DWORD) error {
 	switch event {
 	case ToggleNavLights:
-		s.logger.Info("toggle_nav_light")
-		return s.sc.TransmitClientID(s.events.ToggleNavLights, 0)
+		s.logger.Info("toggle_nav_light", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ToggleNavLights, data)
 	case ComFractInc:
-		s.logger.Info("com_fract_inc")
-		return s.sc.TransmitClientID(s.events.ComFractInc, 0)
+		s.logger.Info("com_fract_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComFractInc, data)
 	case ComFractDec:
-		s.logger.Info("com_fract_dec")
-		return s.sc.TransmitClientID(s.events.ComFractDec, 0)
+		s.logger.Info("com_fract_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComFractDec, data)
+	case ComWholeInc:
+		s.logger.Info("com_whole_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComWholeInc, data)
+	case ComWholeDec:
+		s.logger.Info("com_whole_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComWholeDec, data)
+	case AltVarInc:
+		s.logger.Info("ap_alt_var_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.AltVarInc, data)
+	case AltVarDec:
+		s.logger.Info("ap_alt_var_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.AltVarDec, data)
+	case AltVarSet:
+		s.logger.Info("ap_alt_var_set", zap.Uint32("data", uint32(data)))
+		s.lastAlt = int(data)
+		return s.sc.TransmitClientID(s.events.AltVarSet, data)
+	case HeadingBugInc:
+		s.logger.Info("heading_bug_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.HeadingBugInc, data)
+	case HeadingBugDec:
+		s.logger.Info("heading_bug_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.HeadingBugDec, data)
+	case HeadingBugSet:
+		s.logger.Info("heading_bug_set", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.HeadingBugSet, data)
 	default:
 		s.logger.Error("unknown_transmit_event", zap.Int("event", int(event)))
 		return fmt.Errorf("unknown_transmit_event: %d", event)
 	}
+}
+
+func (s *SimConnectorClient) GetLastHeading() float64 {
+	return s.lastHeading
+}
+
+func (s *SimConnectorClient) GetLastAlt() int {
+	return s.lastAlt
+}
+
+func (s *SimConnectorClient) TransmitEvent(event Event) error {
+	return s.TransmitEventDataDWORD(event, 0)
 }
 
 type Event int
@@ -193,6 +245,12 @@ const (
 	ComTwoFractInc
 	ComTwoFractDec
 	ComTwoSwap
+	AltVarInc
+	AltVarDec
+	AltVarSet
+	HeadingBugInc
+	HeadingBugDec
+	HeadingBugSet
 )
 
 type Events struct {
@@ -208,12 +266,21 @@ type Events struct {
 	ComTwoFractInc  simconnect.DWORD `name:"COM2_RADIO_FRACT_INC"`
 	ComTwoFractDec  simconnect.DWORD `name:"COM2_RADIO_FRACT_DEC"`
 	ComTwoSwap      simconnect.DWORD `name:"COM2_RADIO_SWAP"`
+	AltVarInc       simconnect.DWORD `name:"AP_ALT_VAR_INC"`
+	AltVarDec       simconnect.DWORD `name:"AP_ALT_VAR_DEC"`
+	AltVarSet       simconnect.DWORD `name:"AP_ALT_VAR_SET_ENGLISH"`
+	HeadingBugInc   simconnect.DWORD `name:"HEADING_BUG_INC"`
+	HeadingBugDec   simconnect.DWORD `name:"HEADING_BUG_DEC"`
+	HeadingBugSet   simconnect.DWORD `name:"HEADING_BUG_SET"`
 }
 
 type Report struct {
 	simconnect.RecvSimobjectDataByType
-	Title    [256]byte `name:"TITLE"`
-	Altitude float64   `name:"Plane Altitude" unit:"feet"`
+	//Title    [256]byte `name:"TITLE"`
+	Altitude            float64   `name:"AUTOPILOT ALTITUDE LOCK VAR" unit:"feet"`
+	ComActiveFrequency  float64   `name:"COM ACTIVE FREQUENCY:1" unit:"Mhz"`
+	ComStandbyFrequency float64   `name:"COM STANDBY FREQUENCY:1" unit:"Mhz"`
+	Heading							float64   `name:"PLANE HEADING DEGREES MAGNETIC" unit:"degrees"`
 }
 
 func (r *Report) RequestData(s *simconnect.SimConnect) {

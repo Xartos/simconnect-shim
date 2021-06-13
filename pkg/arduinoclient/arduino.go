@@ -175,20 +175,29 @@ func arduinoLineReader(stream *serial.Port, writeChannel chan []byte, stopChan c
 
 	// }
 	buf := make([]byte, 1)
-	fullBuf := make([]byte, 256)
+	fullBuf := make([]byte, 0)
 
 	for !isStop {
-		n, err := stream.Read(buf)
-		if err != nil {
-			logger.Fatal("reading_stream", zap.Error(err))
-		} else if n != 1 {
-			logger.Fatal("reading_stream_n", zap.Int("n", n))
+		n, _ := stream.Read(buf)
+		//if err != nil {
+		//	logger.Fatal("reading_stream", zap.Error(err))
+		//} else if n != 1 {
+		if n != 1 {
+			//logger.Warn("reading_stream_n", zap.Int("n", n))
+			select {
+			case stop := <-stopChan:
+				logger.Debug("reader_stop")
+				isStop = stop
+			default:
+				continue
+			}
+
 		}
 
 		c := buf[0]
 		if c == '\n' {
 			writeChannel <- fullBuf
-			fullBuf = make([]byte, 256)
+			fullBuf = make([]byte, 0)
 
 			select {
 			case stop := <-stopChan:
@@ -260,7 +269,8 @@ func (a *ArduinoClient) arduinoReadWriter(stream *serial.Port) {
 					//	a.logger.Fatal("protocol_decode_data", zap.ByteString("data", read), zap.Int("n", n))
 					//}
 				} else {
-					a.logger.Fatal("protocol_data_len", zap.ByteString("data", read))
+					a.logger.Error("protocol_data_len", zap.ByteString("data", read))
+					continue
 				}
 			} else {
 				a.logger.Fatal("protocol_not_enough_data", zap.ByteString("data", read))

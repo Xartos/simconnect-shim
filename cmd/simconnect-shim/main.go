@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"math"
 
 	"../../pkg/arduinoclient"
 	"../../pkg/simconnector"
@@ -23,14 +24,60 @@ var gSimConnect *simconnector.SimConnectorClient
 
 type ArduinoListener struct{}
 
+var com1WholeFrac bool
+var altInc int
+
 func (al *ArduinoListener) Update(id int, eventType int, value int32) {
 	logger.Debug("arduino_listener_update", zap.Int("id", id), zap.Int("event_type", eventType), zap.Int32("value", value))
 
-	if value == 1 {
-		gSimConnect.TransmitEvent(simconnector.ComFractInc)
-	} else {
-		gSimConnect.TransmitEvent(simconnector.ComFractDec)
-	}
+	switch id {
+		case 0: // COM rotary button
+			if value == 1 {
+				com1WholeFrac = !com1WholeFrac
+			}
+		case 1: // COM rotary
+			if value == 1 {
+				if com1WholeFrac {
+					gSimConnect.TransmitEvent(simconnector.ComFractInc)
+				} else {
+					gSimConnect.TransmitEvent(simconnector.ComWholeInc)
+				}
+			} else {
+				if com1WholeFrac {
+					gSimConnect.TransmitEvent(simconnector.ComFractDec)
+				} else {
+					gSimConnect.TransmitEvent(simconnector.ComWholeDec)
+				}
+			}
+		case 2: // Alt rotary button
+			if value == 1 {
+				//gSimConnect.TransmitEvent(simconnector.)
+				//gSimConnect.TransmitEventData(simconnector.HeadingBugSet, int(math.Round(gSimConnect.GetLastHeading())))
+				if altInc == 100 {
+					altInc = 1000
+				} else {
+					altInc = 100
+				}
+			}
+		case 3: // Alt rotary
+			if value == 1 {
+				gSimConnect.TransmitEventData(simconnector.AltVarSet, gSimConnect.GetLastAlt() + altInc)
+				//gSimConnect.TransmitEvent(simconnector.HeadingBugInc)
+			} else {
+				gSimConnect.TransmitEventData(simconnector.AltVarSet, gSimConnect.GetLastAlt() - altInc)
+				//gSimConnect.TransmitEvent(simconnector.HeadingBugDec)
+			}
+		case 4: // Heading rotary button
+			if value == 1 {
+				gSimConnect.TransmitEventData(simconnector.HeadingBugSet, int(math.Round(gSimConnect.GetLastHeading())))
+			}
+		case 5: // Heading rotary
+			if value == 1 {
+				gSimConnect.TransmitEvent(simconnector.HeadingBugInc)
+			} else {
+				gSimConnect.TransmitEvent(simconnector.HeadingBugDec)
+			}
+		}
 
 	//mute, err := gPulseClient.GetMute()
 	//if err != nil {
@@ -43,11 +90,16 @@ func (al *ArduinoListener) Update(id int, eventType int, value int32) {
 type SimConnectorListener struct{}
 
 func (sl *SimConnectorListener) Update(id int, report simconnector.Report) {
-	logger.Debug("simconnect_listener_update", zap.ByteString("Title", report.Title[:]), zap.Float64("Altitude", report.Altitude))
+	logger.Debug("simconnect_listener_update", /* zap.ByteString("Title", report.Title[:]), */ zap.Float64("Altitude", report.Altitude))
+
 	gArduino.SendEvent(2, 0, fmt.Sprintf("%.0f",report.Altitude))
+	gArduino.SendEvent(3, 0, fmt.Sprintf("%.3f",report.ComStandbyFrequency))
+	gArduino.SendEvent(4, 0, fmt.Sprintf("%.3f",report.ComActiveFrequency))
 }
 
 func main() {
+	com1WholeFrac = true
+	altInc = 100
 	setupLogger()
 
 	arduino, err := arduinoclient.NewArduinoClient("COM3", &ArduinoListener{}, logger)
