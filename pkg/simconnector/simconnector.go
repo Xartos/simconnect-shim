@@ -26,16 +26,26 @@ func NewSimConnectorClient(
 	events := Events{
 		ToggleNavLights: s.GetEventID(),
 		ToggleAPMaster:  s.GetEventID(),
-		ComWholeInc:     s.GetEventID(),
-		ComWholeDec:     s.GetEventID(),
-		ComFractInc:     s.GetEventID(),
-		ComFractDec:     s.GetEventID(),
-		ComSwap:         s.GetEventID(),
+		ComOneWholeInc:  s.GetEventID(),
+		ComOneWholeDec:  s.GetEventID(),
+		ComOneFractInc:  s.GetEventID(),
+		ComOneFractDec:  s.GetEventID(),
+		ComOneSwap:      s.GetEventID(),
 		ComTwoWholeInc:  s.GetEventID(),
 		ComTwoWholeDec:  s.GetEventID(),
 		ComTwoFractInc:  s.GetEventID(),
 		ComTwoFractDec:  s.GetEventID(),
 		ComTwoSwap:      s.GetEventID(),
+		NavOneWholeInc:  s.GetEventID(),
+		NavOneWholeDec:  s.GetEventID(),
+		NavOneFractInc:  s.GetEventID(),
+		NavOneFractDec:  s.GetEventID(),
+		NavOneSwap:      s.GetEventID(),
+		NavTwoWholeInc:  s.GetEventID(),
+		NavTwoWholeDec:  s.GetEventID(),
+		NavTwoFractInc:  s.GetEventID(),
+		NavTwoFractDec:  s.GetEventID(),
+		NavTwoSwap:      s.GetEventID(),
 		AltVarInc:       s.GetEventID(),
 		AltVarDec:       s.GetEventID(),
 		AltVarSet:       s.GetEventID(),
@@ -104,6 +114,11 @@ func (s *SimConnectorClient) simconnectReader() {
 
 		ppData, r1, err := s.sc.GetNextDispatch()
 
+		if err != nil {
+				s.logger.Error("GetNextDispatch", zap.Error(err))
+	  }
+
+
 		if r1 < 0 {
 			if uint32(r1) == simconnect.E_FAIL {
 				continue
@@ -117,7 +132,7 @@ func (s *SimConnectorClient) simconnectReader() {
 		switch recvInfo.ID {
 		case simconnect.RECV_ID_EXCEPTION:
 			recvErr := *(*simconnect.RecvException)(ppData)
-			s.logger.Error("SIMCONNECT_RECV_ID_EXCEPTION", zap.String("err", fmt.Sprintf("%#v", recvErr)))
+			s.logger.Panic("SIMCONNECT_RECV_ID_EXCEPTION", zap.String("err", fmt.Sprintf("%#v", recvErr)))
 
 		case simconnect.RECV_ID_OPEN:
 			recvOpen := *(*simconnect.RecvOpen)(ppData)
@@ -146,8 +161,22 @@ func (s *SimConnectorClient) simconnectReader() {
 				s.logger.Debug("got_report",
 					//zap.String("title", fmt.Sprintf("%s", report.Title[:])),
 					zap.Int("altitude", int(report.Altitude)),
-					zap.Float64("com_active_frequency", report.ComActiveFrequency),
+					zap.Float64("com_one_active", report.ComOneActiveFrequency),
+					zap.Float64("com_one_standby", report.ComOneStandbyFrequency),
+					zap.Float64("com_two_active", report.ComTwoActiveFrequency),
+					zap.Float64("com_two_standby", report.ComTwoStandbyFrequency),
+					zap.Float64("nav_one_active", report.NavOneActiveFrequency),
+					zap.Float64("nav_one_standby", report.NavOneStandbyFrequency),
+					zap.Float64("nav_two_active", report.NavTwoActiveFrequency),
+					zap.Float64("nav_two_standby", report.NavTwoStandbyFrequency),
 					zap.Float64("heading", report.Heading),
+					zap.Float64("headingMode", report.HeadingMode),
+					zap.Float64("approachMode", report.ApproachMode),
+					zap.Float64("altitudeMode", report.AltitudeMode),
+					zap.Float64("verticalMode", report.VerticalMode),
+					zap.Float64("speedMode", report.SpeedMode),
+					zap.Float64("flcMode", report.FlcMode),
+					zap.Float64("navMode", report.NavMode),
 				)
 				s.lastAlt = int(report.Altitude)
 				s.lastHeading = report.Heading
@@ -181,18 +210,66 @@ func (s *SimConnectorClient) TransmitEventDataDWORD(event Event, data simconnect
 	case ToggleNavLights:
 		s.logger.Info("toggle_nav_light", zap.Uint32("data", uint32(data)))
 		return s.sc.TransmitClientID(s.events.ToggleNavLights, data)
-	case ComFractInc:
-		s.logger.Info("com_fract_inc", zap.Uint32("data", uint32(data)))
-		return s.sc.TransmitClientID(s.events.ComFractInc, data)
-	case ComFractDec:
-		s.logger.Info("com_fract_dec", zap.Uint32("data", uint32(data)))
-		return s.sc.TransmitClientID(s.events.ComFractDec, data)
-	case ComWholeInc:
-		s.logger.Info("com_whole_inc", zap.Uint32("data", uint32(data)))
-		return s.sc.TransmitClientID(s.events.ComWholeInc, data)
-	case ComWholeDec:
-		s.logger.Info("com_whole_dec", zap.Uint32("data", uint32(data)))
-		return s.sc.TransmitClientID(s.events.ComWholeDec, data)
+	case ComOneFractInc:
+		s.logger.Info("com_one_fract_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComOneFractInc, data)
+	case ComOneFractDec:
+		s.logger.Info("com_one_fract_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComOneFractDec, data)
+	case ComOneWholeInc:
+		s.logger.Info("com_one_whole_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComOneWholeInc, data)
+	case ComOneWholeDec:
+		s.logger.Info("com_one_whole_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComOneWholeDec, data)
+	case ComOneSwap:
+		s.logger.Info("com_one_swap", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComOneSwap, data)
+	case ComTwoFractInc:
+		s.logger.Info("com_two_fract_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComTwoFractInc, data)
+	case ComTwoFractDec:
+		s.logger.Info("com_two_fract_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComTwoFractDec, data)
+	case ComTwoWholeInc:
+		s.logger.Info("com_two_whole_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComTwoWholeInc, data)
+	case ComTwoWholeDec:
+		s.logger.Info("com_two_whole_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComTwoWholeDec, data)
+	case ComTwoSwap:
+		s.logger.Info("com_two_swap", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.ComTwoSwap, data)
+	case NavOneFractInc:
+		s.logger.Info("nav_one_fract_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavOneFractInc, data)
+	case NavOneFractDec:
+		s.logger.Info("nav_one_fract_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavOneFractDec, data)
+	case NavOneWholeInc:
+		s.logger.Info("nav_one_whole_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavOneWholeInc, data)
+	case NavOneWholeDec:
+		s.logger.Info("nav_one_whole_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavOneWholeDec, data)
+	case NavOneSwap:
+		s.logger.Info("nav_one_swap", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavOneSwap, data)
+	case NavTwoFractInc:
+		s.logger.Info("nav_two_fract_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavTwoFractInc, data)
+	case NavTwoFractDec:
+		s.logger.Info("nav_two_fract_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavTwoFractDec, data)
+	case NavTwoWholeInc:
+		s.logger.Info("nav_two_whole_inc", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavTwoWholeInc, data)
+	case NavTwoWholeDec:
+		s.logger.Info("nav_two_whole_dec", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavTwoWholeDec, data)
+	case NavTwoSwap:
+		s.logger.Info("nav_two_swap", zap.Uint32("data", uint32(data)))
+		return s.sc.TransmitClientID(s.events.NavTwoSwap, data)
 	case AltVarInc:
 		s.logger.Info("ap_alt_var_inc", zap.Uint32("data", uint32(data)))
 		return s.sc.TransmitClientID(s.events.AltVarInc, data)
@@ -235,16 +312,26 @@ type Event int
 const (
 	ToggleNavLights Event = iota // Toggle navigation lights
 	ToggleAPMaster               // Toggle AP
-	ComWholeInc                  // Com 1 whole increase
-	ComWholeDec                  // Com 1 whole decrease
-	ComFractInc                  // Com 1 frac increase
-	ComFractDec                  // Com 1 frac decrease
-	ComSwap
+	ComOneWholeInc                  // Com 1 whole increase
+	ComOneWholeDec                  // Com 1 whole decrease
+	ComOneFractInc                  // Com 1 frac increase
+	ComOneFractDec                  // Com 1 frac decrease
+	ComOneSwap
 	ComTwoWholeInc
 	ComTwoWholeDec
 	ComTwoFractInc
 	ComTwoFractDec
 	ComTwoSwap
+	NavOneWholeInc                  // Nav 1 whole increase
+	NavOneWholeDec                  // Nav 1 whole decrease
+	NavOneFractInc                  // Nav 1 frac increase
+	NavOneFractDec                  // Nav 1 frac decrease
+	NavOneSwap
+	NavTwoWholeInc                  // Nav 2 whole increase
+	NavTwoWholeDec                  // Nav 2 whole decrease
+	NavTwoFractInc                  // Nav 2 frac increase
+	NavTwoFractDec                  // Nav 2 frac decrease
+	NavTwoSwap
 	AltVarInc
 	AltVarDec
 	AltVarSet
@@ -255,17 +342,28 @@ const (
 
 type Events struct {
 	ToggleNavLights simconnect.DWORD `name:"TOGGLE_NAV_LIGHTS"`
+	ToggleNavLights simconnect.DWORD `name:"TOGGLE_NAV_LIGHTS"`
 	ToggleAPMaster  simconnect.DWORD `name:"AP_MASTER"`
-	ComWholeInc     simconnect.DWORD `name:"COM_RADIO_WHOLE_INC"`
-	ComWholeDec     simconnect.DWORD `name:"COM_RADIO_WHOLE_DEC"`
-	ComFractInc     simconnect.DWORD `name:"COM_RADIO_FRACT_INC"`
-	ComFractDec     simconnect.DWORD `name:"COM_RADIO_FRACT_DEC"`
-	ComSwap         simconnect.DWORD `name:"COM_STBY_RADIO_SWAP"`
+	ComOneWholeInc  simconnect.DWORD `name:"COM_RADIO_WHOLE_INC"`
+	ComOneWholeDec  simconnect.DWORD `name:"COM_RADIO_WHOLE_DEC"`
+	ComOneFractInc  simconnect.DWORD `name:"COM_RADIO_FRACT_INC"`
+	ComOneFractDec  simconnect.DWORD `name:"COM_RADIO_FRACT_DEC"`
+	ComOneSwap      simconnect.DWORD `name:"COM_STBY_RADIO_SWAP"`
 	ComTwoWholeInc  simconnect.DWORD `name:"COM2_RADIO_WHOLE_INC"`
 	ComTwoWholeDec  simconnect.DWORD `name:"COM2_RADIO_WHOLE_DEC"`
 	ComTwoFractInc  simconnect.DWORD `name:"COM2_RADIO_FRACT_INC"`
 	ComTwoFractDec  simconnect.DWORD `name:"COM2_RADIO_FRACT_DEC"`
 	ComTwoSwap      simconnect.DWORD `name:"COM2_RADIO_SWAP"`
+	NavOneWholeInc  simconnect.DWORD `name:"NAV1_RADIO_WHOLE_INC"`
+	NavOneWholeDec  simconnect.DWORD `name:"NAV1_RADIO_WHOLE_DEC"`
+	NavOneFractInc  simconnect.DWORD `name:"NAV1_RADIO_FRACT_INC"`
+	NavOneFractDec  simconnect.DWORD `name:"NAV1_RADIO_FRACT_DEC"`
+	NavOneSwap      simconnect.DWORD `name:"NAV1_RADIO_SWAP"`
+	NavTwoWholeInc  simconnect.DWORD `name:"NAV2_RADIO_WHOLE_INC"`
+	NavTwoWholeDec  simconnect.DWORD `name:"NAV2_RADIO_WHOLE_DEC"`
+	NavTwoFractInc  simconnect.DWORD `name:"NAV2_RADIO_FRACT_INC"`
+	NavTwoFractDec  simconnect.DWORD `name:"NAV2_RADIO_FRACT_DEC"`
+	NavTwoSwap      simconnect.DWORD `name:"NAV2_RADIO_SWAP"`
 	AltVarInc       simconnect.DWORD `name:"AP_ALT_VAR_INC"`
 	AltVarDec       simconnect.DWORD `name:"AP_ALT_VAR_DEC"`
 	AltVarSet       simconnect.DWORD `name:"AP_ALT_VAR_SET_ENGLISH"`
@@ -278,9 +376,25 @@ type Report struct {
 	simconnect.RecvSimobjectDataByType
 	//Title    [256]byte `name:"TITLE"`
 	Altitude            float64   `name:"AUTOPILOT ALTITUDE LOCK VAR" unit:"feet"`
-	ComActiveFrequency  float64   `name:"COM ACTIVE FREQUENCY:1" unit:"Mhz"`
-	ComStandbyFrequency float64   `name:"COM STANDBY FREQUENCY:1" unit:"Mhz"`
+	ComOneActiveFrequency  float64   `name:"COM ACTIVE FREQUENCY:1" unit:"Mhz"`
+	ComOneStandbyFrequency float64   `name:"COM STANDBY FREQUENCY:1" unit:"Mhz"`
+	ComTwoActiveFrequency  float64   `name:"COM ACTIVE FREQUENCY:2" unit:"Mhz"`
+	ComTwoStandbyFrequency float64   `name:"COM STANDBY FREQUENCY:2" unit:"Mhz"`
+	NavOneActiveFrequency  float64   `name:"NAV ACTIVE FREQUENCY:1" unit:"Mhz"`
+	NavOneStandbyFrequency float64   `name:"NAV STANDBY FREQUENCY:1" unit:"Mhz"`
+	NavTwoActiveFrequency  float64   `name:"NAV ACTIVE FREQUENCY:2" unit:"Mhz"`
+	NavTwoStandbyFrequency float64   `name:"NAV STANDBY FREQUENCY:2" unit:"Mhz"`
+	NavActiveFrequency  float64   `name:"COM ACTIVE FREQUENCY:2" unit:"Mhz"`
+	ComStandbyFrequency float64   `name:"COM STANDBY FREQUENCY:2" unit:"Mhz"`
 	Heading							float64   `name:"PLANE HEADING DEGREES MAGNETIC" unit:"degrees"`
+	HeadingBug					float64   `name:"AUTOPILOT HEADING LOCK DIR" unit:"degrees"`
+	HeadingMode					float64   `name:"AUTOPILOT HEADING LOCK"`
+	ApproachMode				float64   `name:"AUTOPILOT APPROACH HOLD"`
+	AltitudeMode				float64   `name:"AUTOPILOT ALTITUDE LOCK"`
+	VerticalMode        float64   `name:"AUTOPILOT VERTICAL HOLD"`
+	SpeedMode      		  float64   `name:"AUTOPILOT AIRSPEED HOLD"`
+	FlcMode       		  float64   `name:"AUTOPILOT FLIGHT LEVEL CHANGE"`
+	NavMode      				float64   `name:"AUTOPILOT NAV1 LOCK"`
 }
 
 func (r *Report) RequestData(s *simconnect.SimConnect) {

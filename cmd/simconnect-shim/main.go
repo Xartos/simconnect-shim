@@ -38,15 +38,15 @@ func (al *ArduinoListener) Update(id int, eventType int, value int32) {
 		case 1: // COM rotary
 			if value == 1 {
 				if com1WholeFrac {
-					gSimConnect.TransmitEvent(simconnector.ComFractInc)
+					gSimConnect.TransmitEvent(simconnector.ComOneFractInc)
 				} else {
-					gSimConnect.TransmitEvent(simconnector.ComWholeInc)
+					gSimConnect.TransmitEvent(simconnector.ComOneWholeInc)
 				}
 			} else {
 				if com1WholeFrac {
-					gSimConnect.TransmitEvent(simconnector.ComFractDec)
+					gSimConnect.TransmitEvent(simconnector.ComOneFractDec)
 				} else {
-					gSimConnect.TransmitEvent(simconnector.ComWholeDec)
+					gSimConnect.TransmitEvent(simconnector.ComOneWholeDec)
 				}
 			}
 		case 2: // Alt rotary button
@@ -92,9 +92,9 @@ type SimConnectorListener struct{}
 func (sl *SimConnectorListener) Update(id int, report simconnector.Report) {
 	logger.Debug("simconnect_listener_update", /* zap.ByteString("Title", report.Title[:]), */ zap.Float64("Altitude", report.Altitude))
 
-	gArduino.SendEvent(2, 0, fmt.Sprintf("%.0f",report.Altitude))
-	gArduino.SendEvent(3, 0, fmt.Sprintf("%.3f",report.ComStandbyFrequency))
-	gArduino.SendEvent(4, 0, fmt.Sprintf("%.3f",report.ComActiveFrequency))
+	//gArduino.SendEvent(2, 0, fmt.Sprintf("%.0f",report.Altitude))
+	//gArduino.SendEvent(3, 0, fmt.Sprintf("%.3f",report.ComStandbyFrequency))
+	//gArduino.SendEvent(4, 0, fmt.Sprintf("%.3f",report.ComActiveFrequency))
 }
 
 func main() {
@@ -102,13 +102,13 @@ func main() {
 	altInc = 100
 	setupLogger()
 
-	arduino, err := arduinoclient.NewArduinoClient("COM3", &ArduinoListener{}, logger)
-	if err != nil {
-		logger.Fatal("arduino_create", zap.Error(err))
-	}
+	// arduino, err := arduinoclient.NewArduinoClient("COM3", &ArduinoListener{}, logger)
+	// if err != nil {
+	// 	logger.Fatal("arduino_create", zap.Error(err))
+	// }
 
-	arduino.Connect()
-	gArduino = arduino
+	// arduino.Connect()
+	// gArduino = arduino
 
 	sc, err := simconnector.NewSimConnectorClient(&SimConnectorListener{}, logger)
 	if err != nil {
@@ -137,7 +137,7 @@ func main() {
 
 	logger.Info("signal_caught_exit")
 
-	arduino.Disconnect()
+	//arduino.Disconnect()
 	sc.Stop()
 
 	time.Sleep(1 * time.Second)
